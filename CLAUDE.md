@@ -1,7 +1,7 @@
 ## Project
 Cyber Salvage Rush is a portrait-mode iOS sci-fi sorting puzzle. Players sort, route, merge, and manage futuristic salvage items moving through a workshop before the conveyor system overloads.
 
-Full build plan: `docs/PLAN.md` (milestones M0–M9).
+Full build plan: `docs/PLAN.md` (milestones M0–M9). Current progress and next steps: `docs/STATUS.md` — read it first when resuming.
 
 ## MVP Goal
 Ship a polished, replayable 60–90 second single-player game loop with score chasing, upgrades, a daily challenge, and friend challenge codes.
