@@ -12,6 +12,7 @@ struct RootView: View {
                     .transition(.opacity)
             case .run(let mode):
                 GameContainerView(mode: mode)
+                    .id(mode)
                     .transition(.opacity)
             }
         }

@@ -1,4 +1,4 @@
-public enum RunMode: Sendable, Equatable {
+public enum RunMode: Sendable, Hashable {
     case endless
     case daily
     case challenge(ChallengeCode)

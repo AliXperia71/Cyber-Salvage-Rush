@@ -109,6 +109,16 @@ final class ProceduralTextureFactory {
         }
     }
 
+    func hand(size: CGFloat) -> SKTexture {
+        cached("hand.\(Int(size))") {
+            render(CGSize(width: size, height: size)) { ctx in
+                ctx.setShadow(offset: .zero, blur: size * 0.15, color: self.theme.standard.cgColor)
+                self.drawSymbol("hand.point.up.left.fill", in: CGRect(x: 0, y: 0, width: size, height: size),
+                                pointSize: size * 0.6, offsetY: 0)
+            }
+        }
+    }
+
     /// Soft white dot; tinted per particle.
     func spark() -> SKTexture {
         cached("spark") {

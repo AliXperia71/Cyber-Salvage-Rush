@@ -46,7 +46,9 @@ final class EffectsDirector {
         label.text = text
         label.fontSize = size
         label.fontColor = color
-        label.position = point
+        let halfWidth = label.frame.width / 2 + 8
+        let sceneWidth = layer.scene?.size.width ?? .greatestFiniteMagnitude
+        label.position = CGPoint(x: min(max(point.x, halfWidth), sceneWidth - halfWidth), y: point.y)
         label.zPosition = 70
         layer.addChild(label)
         let rise: SKAction = reduceMotion ? .wait(forDuration: 0.5) : .moveBy(x: 0, y: 46, duration: 0.6)

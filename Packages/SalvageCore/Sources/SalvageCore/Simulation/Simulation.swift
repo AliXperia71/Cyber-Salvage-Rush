@@ -144,17 +144,23 @@ public struct Simulation: Sendable {
     }
 
     private mutating func advanceBelt(into events: inout [GameEvent]) {
-        let delta = 1 / (curve.travelSeconds(at: elapsedSeconds) * Double(config.tickRate))
+        let travel = mode == .tutorial ? config.tutorialTravelSeconds : curve.travelSeconds(at: elapsedSeconds)
+        let delta = 1 / (travel * Double(config.tickRate))
+        // Tutorial items queue up behind earlier items on the same lane instead of stacking.
+        var waitingPerLane: [Int: Int] = [:]
         var index = 0
         while index < state.items.count {
             let item = state.items[index]
+            let queuePosition = waitingPerLane[item.lane, default: 0]
+            waitingPerLane[item.lane] = queuePosition + 1
             guard case .belt(let progress) = item.location, !item.isHeld else {
                 index += 1
                 continue
             }
             var next = progress + delta
             if mode == .tutorial {
-                next = min(next, config.tutorialHoldProgress)
+                next = min(next, config.tutorialHoldProgress - config.tutorialQueueSpacing * Double(queuePosition))
+                next = max(next, progress)
             }
             if next < 1 {
                 state.items[index].location = .belt(progress: next)

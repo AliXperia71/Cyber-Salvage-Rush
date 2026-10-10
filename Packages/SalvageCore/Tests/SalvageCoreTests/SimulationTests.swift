@@ -123,7 +123,12 @@ struct SimulationTests {
         sim.run(maxTicks: 60 * 30)
         #expect(!sim.state.isOver, "tutorial never fails or advances without the player")
         #expect(sim.state.items.count == 3)
-        #expect(sim.state.items.allSatisfy { $0.location == .belt(progress: GameConfig.v1.tutorialHoldProgress) })
+        let config = GameConfig.v1
+        #expect(sim.state.items.map(\.location) == [
+            .belt(progress: config.tutorialHoldProgress),
+            .belt(progress: config.tutorialHoldProgress),
+            .belt(progress: config.tutorialHoldProgress - config.tutorialQueueSpacing),
+        ], "same-lane items queue instead of overlapping")
         #expect(sim.state.overload == 0)
 
         let first = sim.state.items[0]
@@ -131,10 +136,39 @@ struct SimulationTests {
         #expect(sim.step(inputs: [.drop(itemID: first.id, bin: wrong)]).contains(.rejected(itemID: first.id, bin: wrong)))
         #expect(sim.state.item(id: first.id) != nil)
 
+        // Sorting the head of a lane lets the queued item move up.
+        _ = sim.step(inputs: [.drop(itemID: first.id, bin: .matching(first.kind))])
+        sim.run(maxTicks: 60 * 3)
+        #expect(sim.state.items.allSatisfy { $0.location == .belt(progress: config.tutorialHoldProgress) })
+
         let drops = sim.state.items.map { PlayerInput.drop(itemID: $0.id, bin: .matching($0.kind)) }
         let events = sim.step(inputs: drops)
         #expect(sim.state.isOver)
         #expect(events.contains { if case .runEnded = $0 { true } else { false } })
+    }
+
+    /// Spec: tutorial under 20 s. A new player who drags each item ~0.8 s after it stops should finish well inside that.
+    @Test func tutorialPacingFitsBudget() {
+        var sim = Simulation.tutorial()
+        var restingSince: [Int: Int] = [:]
+        var previous: [Int: Item.Location] = [:]
+        while !sim.state.isOver, sim.elapsedSeconds < 30 {
+            var inputs: [PlayerInput] = []
+            for item in sim.state.items {
+                if previous[item.id] == item.location {
+                    restingSince[item.id, default: sim.state.tick] += 0
+                } else {
+                    restingSince[item.id] = nil
+                }
+                previous[item.id] = item.location
+                if let since = restingSince[item.id], sim.state.tick - since >= sim.config.ticks(0.8), inputs.isEmpty {
+                    inputs.append(.drop(itemID: item.id, bin: .matching(item.kind)))
+                }
+            }
+            _ = sim.step(inputs: inputs)
+        }
+        #expect(sim.state.isOver)
+        #expect(sim.elapsedSeconds < 12, "took \(sim.elapsedSeconds) s")
     }
 
     @Test func identicalInputsGiveIdenticalRuns() {

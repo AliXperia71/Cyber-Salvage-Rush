@@ -23,6 +23,12 @@ final class GameScene: SKScene {
     private var tray: BufferTrayNode
     private var itemNodes: [Int: ItemNode] = [:]
     private var lastUpdate: TimeInterval?
+    private var tutorialGuide: TutorialGuide?
+
+    var hapticsEnabled: Bool {
+        get { haptics.isEnabled }
+        set { haptics.isEnabled = newValue }
+    }
 
     var insets: UIEdgeInsets = .zero {
         didSet { if insets != oldValue { relayout() } }
@@ -59,6 +65,10 @@ final class GameScene: SKScene {
         addChild(dangerOverlay)
         haptics.prepare()
         relayout()
+        if controller.mode == .tutorial {
+            let size = layout.itemSize * 1.1
+            tutorialGuide = TutorialGuide(texture: textures.hand(size: size), size: size, layer: fxLayer)
+        }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -112,6 +122,19 @@ final class GameScene: SKScene {
         dangerOverlay.alpha = CGFloat(max(0, overload - 0.5) * 0.35)
         tray.setFull(controller.hud.bufferFull)
         updateBinHighlights()
+        updateTutorialGuide(frameTime: frameTime)
+    }
+
+    private func updateTutorialGuide(frameTime: TimeInterval) {
+        guard let tutorialGuide else { return }
+        let state = controller.simulation.state
+        // Demo the oldest item once it has stopped at its waiting spot.
+        let target = state.items.first.flatMap { item -> (id: Int, from: CGPoint, to: CGPoint)? in
+            let previous = controller.previousState.item(id: item.id)?.location
+            guard previous == item.location, let node = itemNodes[item.id], !node.awaitingDrop else { return nil }
+            return (item.id, layout.position(of: item), binCenter(.matching(item.kind)))
+        }
+        tutorialGuide.update(frameTime: frameTime, target: target, isDragging: !drag.draggedNodes.isEmpty)
     }
 
     /// Call when returning from pause/background so the gap isn't treated as one long frame.
@@ -127,7 +150,8 @@ final class GameScene: SKScene {
 
         for item in state.items {
             let node = itemNodes[item.id] ?? makeNode(for: item)
-            if let fuse = item.fuseTicks {
+            // Fuses don't burn in training, so a frozen countdown would only confuse.
+            if let fuse = item.fuseTicks, controller.mode.usesOverload {
                 node.updateFuse(ticksRemaining: fuse, tickRate: controller.config.tickRate, time: time)
             }
             guard !node.isDragged, !node.awaitingDrop else { continue }
@@ -179,6 +203,7 @@ final class GameScene: SKScene {
                 effects.burst(at: center, color: textures.theme.color(for: node.kind))
                 effects.popup("+\(points)", at: center + CGPoint(x: 0, y: layout.binRow.height * 0.5), color: textures.theme.color(for: node.kind))
                 haptics.sorted()
+                tutorialGuide?.noteSorted()
 
             case .comboTierUp(let multiplier):
                 effects.popup("×\(multiplier) COMBO", at: CGPoint(x: size.width / 2, y: layout.trayRect.maxY + layout.itemSize * 1.2),
@@ -196,6 +221,8 @@ final class GameScene: SKScene {
             case .rejected(let id, let bin):
                 itemNodes[id]?.awaitingDrop = false
                 bins[bin]?.flash(success: false)
+                effects.popup("MATCH THE SHAPE", at: binCenter(bin) + CGPoint(x: 0, y: layout.binRow.height * 0.5),
+                              color: textures.theme.danger, size: 16)
                 haptics.mistake()
 
             case .shieldUsed(let id, let bin):

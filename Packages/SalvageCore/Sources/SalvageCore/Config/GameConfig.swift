@@ -58,6 +58,10 @@ public struct GameConfig: Sendable, Equatable {
     // MARK: Tutorial
     /// Tutorial items stop here and wait for the player.
     public var tutorialHoldProgress: Double
+    /// Gap between tutorial items queued on the same lane.
+    public var tutorialQueueSpacing: Double
+    /// Faster belt so the whole tutorial fits in under 20 s.
+    public var tutorialTravelSeconds: Double
 
     public func points(for kind: ItemKind) -> Int {
         switch kind {
@@ -108,7 +112,9 @@ extension GameConfig {
         correctSortRelief: 1.5,
         reviveOverload: 50,
         maxRevives: 1,
-        tutorialHoldProgress: 0.55
+        tutorialHoldProgress: 0.55,
+        tutorialQueueSpacing: 0.2,
+        tutorialTravelSeconds: 2.5
     )
 
     /// The version new runs and new challenge codes use.

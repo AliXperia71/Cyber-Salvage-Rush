@@ -4,6 +4,8 @@ import SwiftUI
 struct MainMenuView: View {
     @Environment(AppRouter.self) private var router
     @Environment(ScoreStore.self) private var scores
+    @Environment(SettingsStore.self) private var settings
+    @State private var showingSettings = false
 
     var body: some View {
         VStack(spacing: 28) {
@@ -31,7 +33,7 @@ struct MainMenuView: View {
             Spacer()
 
             VStack(spacing: 14) {
-                Button("PLAY") { router.screen = .run(.endless) }
+                Button("PLAY") { router.screen = .run(settings.tutorialCompleted ? .endless : .tutorial) }
                     .buttonStyle(NeonButtonStyle())
                 Button {
                     router.screen = .run(.daily)
@@ -50,6 +52,22 @@ struct MainMenuView: View {
             .padding(.bottom, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.title2)
+                    .foregroundStyle(Palette.stroke)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Settings")
+            .padding(.trailing, 12)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .presentationDetents([.medium])
+        }
     }
 }
 
@@ -57,5 +75,6 @@ struct MainMenuView: View {
     MainMenuView()
         .environment(AppRouter())
         .environment(ScoreStore())
+        .environment(SettingsStore())
         .background(Palette.background)
 }

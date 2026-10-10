@@ -22,6 +22,8 @@ private struct GameRunView: View {
     @Environment(ScoreStore.self) private var scores
     @Environment(\.scenePhase) private var scenePhase
 
+    @Environment(SettingsStore.self) private var settings
+
     init(mode: RunMode, onRetry: @escaping () -> Void) {
         self.onRetry = onRetry
         let controller = GameController(simulation: Self.makeSimulation(for: mode))
@@ -47,19 +49,27 @@ private struct GameRunView: View {
                     .onChange(of: proxy.safeAreaInsets) { _, insets in scene.insets = UIEdgeInsets(insets) }
 
                 VStack {
-                    HUDView(hud: controller.hud, mode: controller.mode, onPause: pause)
+                    if controller.mode == .tutorial {
+                        TutorialHUDView(hint: controller.hud.tutorialHint, onSkip: finishTutorial)
+                    } else {
+                        HUDView(hud: controller.hud, mode: controller.mode, onPause: pause)
+                    }
                     Spacer()
                 }
 
                 overlay
             }
         }
+        .onAppear { scene.hapticsEnabled = settings.hapticsEnabled }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { pause() }
         }
         .onChange(of: controller.phase) { _, phase in
-            if case .ended(let summary) = phase, controller.mode == .endless {
-                isNewBest = scores.record(endlessScore: summary.score)
+            guard case .ended(let summary) = phase else { return }
+            switch controller.mode {
+            case .endless: isNewBest = scores.record(endlessScore: summary.score)
+            case .tutorial: settings.tutorialCompleted = true
+            case .daily, .challenge: break
             }
         }
     }
@@ -71,6 +81,9 @@ private struct GameRunView: View {
             EmptyView()
         case .paused:
             PauseView(onResume: resume, onQuit: quit)
+                .transition(.opacity)
+        case .ended where controller.mode == .tutorial:
+            TutorialCompleteView(onContinue: finishTutorial)
                 .transition(.opacity)
         case .ended(let summary):
             ResultsView(summary: summary, mode: controller.mode, best: scores.bestEndless, isNewBest: isNewBest,
@@ -88,6 +101,12 @@ private struct GameRunView: View {
     private func resume() {
         scene.resetClock()
         controller.resume()
+    }
+
+    /// Tutorial finished or skipped: go straight into a real run.
+    private func finishTutorial() {
+        settings.tutorialCompleted = true
+        router.screen = .run(.endless)
     }
 
     private func quit() {

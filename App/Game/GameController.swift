@@ -20,6 +20,8 @@ final class GameController {
         var multiplier = 1
         var combo = 0
         var bufferFull = false
+        /// Tutorial only: the kind of the item the player should sort next.
+        var tutorialHint: ItemKind?
     }
 
     private(set) var phase: Phase = .playing
@@ -86,7 +88,8 @@ final class GameController {
             overload: Int(state.overload.rounded()),
             multiplier: state.combo.multiplier,
             combo: state.combo.count,
-            bufferFull: state.bufferOccupancy >= state.bufferCapacity
+            bufferFull: state.bufferOccupancy >= state.bufferCapacity,
+            tutorialHint: mode == .tutorial ? state.items.first?.kind : nil
         )
         if next != hud { hud = next }
     }

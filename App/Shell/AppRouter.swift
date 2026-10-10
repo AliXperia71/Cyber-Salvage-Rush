@@ -14,9 +14,12 @@ final class AppRouter {
 
     init() {
         #if DEBUG
-        // `-startRun` skips the menu; used for screenshots and quick iteration.
-        if ProcessInfo.processInfo.arguments.contains("-startRun") {
+        // `-startRun` / `-startTutorial` skip the menu; used for screenshots and quick iteration.
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-startRun") {
             screen = .run(.endless)
+        } else if arguments.contains("-startTutorial") {
+            screen = .run(.tutorial)
         }
         #endif
     }
