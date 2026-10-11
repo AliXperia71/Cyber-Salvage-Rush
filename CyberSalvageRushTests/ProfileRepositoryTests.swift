@@ -71,6 +71,28 @@ struct ProfileRepositoryTests {
         #expect(repo.bestEndless == 2_500)
     }
 
+    @Test func bestIsScopedPerMode() {
+        let repo = makeRepository()
+        let code = ChallengeCode(configVersion: 1, seed: 5)!
+        repo.recordRun(id: UUID(), summary: summary(score: 5_000), mode: .endless, at: day1)
+
+        let firstDaily = repo.recordRun(id: UUID(), summary: summary(score: 1_000), mode: .daily, at: day1)
+        #expect(firstDaily?.isNewBest == true)
+        #expect(firstDaily?.best == 1_000)
+        let worseDaily = repo.recordRun(id: UUID(), summary: summary(score: 800), mode: .daily, at: day1)
+        #expect(worseDaily?.isNewBest == false)
+        #expect(repo.dailyBests["20261009"] == 1_000)
+        // A new UTC day starts a fresh daily best.
+        let nextDay = repo.recordRun(id: UUID(), summary: summary(score: 300), mode: .daily, at: day2)
+        #expect(nextDay?.isNewBest == true)
+        #expect(repo.dailyBests["20261010"] == 300)
+
+        let challenge = repo.recordRun(id: UUID(), summary: summary(score: 200), mode: .challenge(code), at: day1)
+        #expect(challenge?.isNewBest == true)
+        #expect(repo.bestScore(challenge: code) == 200)
+        #expect(repo.bestEndless == 5_000)
+    }
+
     @Test func seedRoundTripsThroughSignedStorage() throws {
         let repo = makeRepository()
         repo.recordRun(id: UUID(), summary: summary(score: 100), mode: .endless, at: day1)

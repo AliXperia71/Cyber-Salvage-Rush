@@ -2,8 +2,11 @@ import Foundation
 import SalvageCore
 import SwiftData
 
+// Unchanged models keep their V1 definitions; only new or changed ones get a new nested type.
 typealias PlayerProfile = SchemaV1.PlayerProfile
 typealias RunRecord = SchemaV1.RunRecord
+typealias ChallengeEntry = SchemaV2.ChallengeEntry
+typealias ChallengeResult = SchemaV2.ChallengeResult
 
 /// Versioned from day one so later schema changes get a real migration path.
 enum SchemaV1: VersionedSchema {
@@ -66,7 +69,51 @@ enum SchemaV1: VersionedSchema {
     }
 }
 
+/// Adds friend challenges.
+enum SchemaV2: VersionedSchema {
+    static let versionIdentifier = Schema.Version(2, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [SchemaV1.PlayerProfile.self, SchemaV1.RunRecord.self, ChallengeEntry.self, ChallengeResult.self]
+    }
+
+    /// A challenge the player created, joined, or received results for.
+    /// The player's own best comes from `RunRecord.challengeCode`, not from here.
+    @Model
+    final class ChallengeEntry {
+        @Attribute(.unique) var code: String
+        var createdAt: Date
+        var lastActivity: Date
+        @Relationship(deleteRule: .cascade, inverse: \ChallengeResult.challenge)
+        var results: [ChallengeResult] = []
+
+        init(code: String, date: Date) {
+            self.code = code
+            createdAt = date
+            lastActivity = date
+        }
+    }
+
+    /// A friend's score, pasted in from their `ResultCode`.
+    @Model
+    final class ChallengeResult {
+        var resultCode: String
+        var name: String?
+        var score: Int
+        var addedAt: Date
+        var challenge: ChallengeEntry?
+
+        init(resultCode: String, name: String?, score: Int, addedAt: Date) {
+            self.resultCode = resultCode
+            self.name = name
+            self.score = score
+            self.addedAt = addedAt
+        }
+    }
+}
+
 enum SalvageMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self] }
-    static var stages: [MigrationStage] { [] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self] }
+    static var stages: [MigrationStage] {
+        [.lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self)]
+    }
 }

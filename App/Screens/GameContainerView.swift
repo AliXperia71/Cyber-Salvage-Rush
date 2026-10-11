@@ -135,6 +135,9 @@ private struct GameRunView: View {
     }
 
     private func quit() {
+        if case .challenge(let code) = controller.mode {
+            router.pendingLink = .challenge(code)
+        }
         router.screen = .menu
     }
 }

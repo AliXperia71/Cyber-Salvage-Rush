@@ -8,6 +8,7 @@ struct CyberSalvageRushApp: App {
     @State private var settings = SettingsStore()
     private let container: ModelContainer
     @State private var profile: ProfileRepository
+    @State private var challenges: ChallengeRepository
 
     init() {
         var inMemory = false
@@ -25,7 +26,9 @@ struct CyberSalvageRushApp: App {
             container = try! ProfileRepository.makeContainer(inMemory: true)
         }
         self.container = container
-        _profile = State(initialValue: ProfileRepository(container: container))
+        let profile = ProfileRepository(container: container)
+        _profile = State(initialValue: profile)
+        _challenges = State(initialValue: ChallengeRepository(container: container, profile: profile))
     }
 
     var body: some Scene {
@@ -34,6 +37,7 @@ struct CyberSalvageRushApp: App {
                 .environment(router)
                 .environment(settings)
                 .environment(profile)
+                .environment(challenges)
                 .modelContainer(container)
                 .preferredColorScheme(.dark)
                 .statusBarHidden()

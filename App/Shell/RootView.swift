@@ -17,5 +17,9 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: router.screen)
+        .onOpenURL { url in
+            // Never interrupt a run; the menu picks this up when it next appears.
+            if let link = DeepLink(url: url) { router.pendingLink = link }
+        }
     }
 }

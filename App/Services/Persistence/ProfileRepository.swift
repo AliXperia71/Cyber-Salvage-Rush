@@ -14,6 +14,7 @@ enum ShopError: Error, Equatable {
 struct RunReward: Equatable {
     var credits: Int
     var dailyBonus: Int
+    /// Best and new-best are per context: all-time for Endless, today for Daily, per code for challenges.
     var isNewBest: Bool
     var best: Int
 }
@@ -39,16 +40,26 @@ final class ProfileRepository {
     private(set) var equippedDroneID = "drone.spark"
     private(set) var upgrades = UpgradeLevels()
     private(set) var bestEndless = 0
+    /// Daily best keyed by `DailySeed.dayKey`. Holds today (loaded at launch) and any day recorded since.
+    private(set) var dailyBests: [String: Int] = [:]
 
     @ObservationIgnored private let context: ModelContext
     @ObservationIgnored private let profile: PlayerProfile
     @ObservationIgnored private let economy: EconomyConfig
 
     static func makeContainer(inMemory: Bool) throws -> ModelContainer {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-        return try ModelContainer(for: Schema(versionedSchema: SchemaV1.self),
-                                  migrationPlan: SalvageMigrationPlan.self,
-                                  configurations: configuration)
+        try makeContainer(ModelConfiguration(isStoredInMemoryOnly: inMemory))
+    }
+
+    /// On-disk store at a specific location; used by migration tests.
+    static func makeContainer(url: URL) throws -> ModelContainer {
+        try makeContainer(ModelConfiguration(url: url))
+    }
+
+    private static func makeContainer(_ configuration: ModelConfiguration) throws -> ModelContainer {
+        try ModelContainer(for: Schema(versionedSchema: SchemaV2.self),
+                           migrationPlan: SalvageMigrationPlan.self,
+                           configurations: configuration)
     }
 
     init(container: ModelContainer, economy: EconomyConfig = .standard) {
@@ -67,6 +78,8 @@ final class ProfileRepository {
         }
         save()
         refreshBest()
+        let today = DailySeed.dayKey(for: .now)
+        dailyBests[today] = bestScore(Self.scope(for: .daily, dayKey: today))
         mirror()
     }
 
@@ -81,7 +94,9 @@ final class ProfileRepository {
         duplicate.fetchLimit = 1
         guard ((try? context.fetchCount(duplicate)) ?? 0) == 0 else { return nil }
 
-        let previousBest = bestEndless
+        let dayKey = DailySeed.dayKey(for: date)
+        let scope = Self.scope(for: mode, dayKey: dayKey)
+        let previousBest = bestScore(scope)
         let firstRunToday = profile.lastRunDayKey != DailySeed.dayKey(for: date)
         let total = Economy.credits(for: summary, mode: mode, firstRunToday: firstRunToday, config: economy)
         let bonus = firstRunToday ? economy.firstRunOfDayBonus : 0
@@ -91,12 +106,18 @@ final class ProfileRepository {
                                  score: summary.score, duration: summary.durationSeconds, date: date))
         profile.credits += total
         profile.runCount += 1
-        profile.lastRunDayKey = DailySeed.dayKey(for: date)
+        profile.lastRunDayKey = dayKey
         save()
         refreshBest()
+        if mode == .daily { dailyBests[dayKey] = max(previousBest, summary.score) }
         mirror()
         return RunReward(credits: total, dailyBonus: bonus,
-                         isNewBest: mode == .endless && summary.score > previousBest, best: bestEndless)
+                         isNewBest: summary.score > previousBest, best: max(previousBest, summary.score))
+    }
+
+    /// Best score for one challenge code, or nil if the player hasn't finished a run of it.
+    func bestScore(challenge code: ChallengeCode) -> Int? {
+        topScore(Self.scope(for: .challenge(code), dayKey: ""))
     }
 
     // MARK: - Shop
@@ -154,11 +175,31 @@ final class ProfileRepository {
     }
 
     private func refreshBest() {
-        let key = RunMode.endless.recordKey
-        var descriptor = FetchDescriptor<RunRecord>(predicate: #Predicate { $0.modeKey == key },
-                                                    sortBy: [SortDescriptor(\.score, order: .reverse)])
+        bestEndless = bestScore(Self.scope(for: .endless, dayKey: ""))
+    }
+
+    /// The runs a score competes against: all Endless runs, today's dailies, or one challenge code.
+    private static func scope(for mode: RunMode, dayKey: String) -> Predicate<RunRecord> {
+        let key = mode.recordKey
+        switch mode {
+        case .daily:
+            return #Predicate { $0.modeKey == key && $0.dayKey == dayKey }
+        case .challenge(let challenge):
+            let code: String? = challenge.description
+            return #Predicate { $0.modeKey == key && $0.challengeCode == code }
+        case .endless, .tutorial:
+            return #Predicate { $0.modeKey == key }
+        }
+    }
+
+    private func bestScore(_ predicate: Predicate<RunRecord>) -> Int {
+        topScore(predicate) ?? 0
+    }
+
+    private func topScore(_ predicate: Predicate<RunRecord>) -> Int? {
+        var descriptor = FetchDescriptor(predicate: predicate, sortBy: [SortDescriptor(\.score, order: .reverse)])
         descriptor.fetchLimit = 1
-        bestEndless = (try? context.fetch(descriptor).first?.score) ?? 0
+        return try? context.fetch(descriptor).first?.score
     }
 
     private func save() {

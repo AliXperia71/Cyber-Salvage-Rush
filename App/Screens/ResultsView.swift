@@ -24,14 +24,14 @@ struct ResultsView: View {
                         .foregroundStyle(Palette.text)
                         .minimumScaleFactor(0.5)
                     if reward?.isNewBest == true {
-                        Text("NEW BEST")
+                        Text(newBestTitle)
                             .font(.system(.headline, design: .monospaced).weight(.black))
                             .foregroundStyle(Palette.background)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
                             .background(Palette.gold, in: .capsule)
-                    } else if mode == .endless, let best = reward?.best, best > 0 {
-                        Text("BEST \(best.formatted())")
+                    } else if let best = reward?.best, best > 0 {
+                        Text("\(bestTitle) \(best.formatted())")
                             .font(.system(.subheadline, design: .monospaced).weight(.bold))
                             .foregroundStyle(Palette.gold)
                     }
@@ -60,6 +60,20 @@ struct ResultsView: View {
                 .padding(.vertical, 12)
                 .background(Palette.panel.opacity(0.9), in: .rect(cornerRadius: 14))
 
+                if let resultCode {
+                    VStack(spacing: 6) {
+                        ShareLink(item: resultCode.shareMessage) {
+                            Label("SEND RESULT", systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(NeonButtonStyle(color: Palette.magenta, prominent: false))
+                        Text(resultCode.description)
+                            .font(.system(.caption, design: .monospaced).weight(.bold))
+                            .foregroundStyle(Palette.stroke)
+                            .textSelection(.enabled)
+                            .accessibilityLabel("Result code \(resultCode.description)")
+                    }
+                }
+
                 Button(action: onRetry) {
                     Label("RETRY", systemImage: "arrow.clockwise")
                 }
@@ -74,6 +88,30 @@ struct ResultsView: View {
             .overlay(RoundedRectangle(cornerRadius: 24).stroke(Palette.danger.opacity(0.6), lineWidth: 1.5))
             .shadow(color: Palette.danger.opacity(0.35), radius: 24)
             .padding(20)
+        }
+    }
+}
+
+extension ResultsView {
+    /// Challenge runs send this back to the friend who shared the code.
+    private var resultCode: ResultCode? {
+        guard case .challenge(let code) = mode else { return nil }
+        return ResultCode(challenge: code, score: summary.score)
+    }
+
+    private var newBestTitle: String {
+        switch mode {
+        case .daily: "NEW DAILY BEST"
+        case .challenge: "NEW CHALLENGE BEST"
+        case .endless, .tutorial: "NEW BEST"
+        }
+    }
+
+    private var bestTitle: String {
+        switch mode {
+        case .daily: "TODAY'S BEST"
+        case .challenge: "YOUR BEST"
+        case .endless, .tutorial: "BEST"
         }
     }
 }

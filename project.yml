@@ -39,6 +39,10 @@ targets:
         UIStatusBarHidden: true
         CADisableMinimumFrameDurationOnPhone: true
         ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.aliaamir.CyberSalvageRush
+            CFBundleURLSchemes:
+              - cybersalvage
         LSRequiresIPhoneOS: true
     settings:
       base:

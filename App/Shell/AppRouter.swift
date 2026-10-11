@@ -11,6 +11,8 @@ final class AppRouter {
     }
 
     var screen: Screen = .menu
+    /// A challenge to show once the menu is up: from an opened link, or returning from a challenge run.
+    var pendingLink: DeepLink?
 
     init() {
         #if DEBUG
