@@ -6,34 +6,60 @@ import SwiftUI
 struct GameContainerView: View {
     let mode: RunMode
     @State private var runID = UUID()
+    /// Snapshot per run: profile changes mid-run (e.g. credits on run end) must not rebuild the scene.
+    @State private var loadout: Loadout?
+    @Environment(ProfileRepository.self) private var profile
 
     var body: some View {
-        GameRunView(mode: mode, onRetry: { runID = UUID() })
+        if let loadout {
+            GameRunView(mode: mode, loadout: loadout, onRetry: {
+                self.loadout = makeLoadout()
+                runID = UUID()
+            })
             .id(runID)
+        } else {
+            Color.clear.onAppear { loadout = makeLoadout() }
+        }
     }
+
+    private func makeLoadout() -> Loadout {
+        Loadout(theme: Theme.with(id: profile.equippedThemeID),
+                droneID: mode == .tutorial ? nil : profile.equippedDroneID,
+                modifiers: Economy.modifiers(for: profile.upgrades, mode: mode))
+    }
+}
+
+/// What the player brings into a run from the shop.
+struct Loadout {
+    var theme: Theme
+    var droneID: String?
+    var modifiers: RunModifiers
 }
 
 private struct GameRunView: View {
     let onRetry: () -> Void
     @State private var controller: GameController
     @State private var scene: GameScene
-    @State private var isNewBest = false
+    @State private var reward: RunReward?
+    /// Identifies this run for idempotent recording; retry rebuilds the view and gets a new one.
+    private let runID = UUID()
     @Environment(AppRouter.self) private var router
-    @Environment(ScoreStore.self) private var scores
+    @Environment(ProfileRepository.self) private var profile
     @Environment(\.scenePhase) private var scenePhase
 
     @Environment(SettingsStore.self) private var settings
 
-    init(mode: RunMode, onRetry: @escaping () -> Void) {
+    init(mode: RunMode, loadout: Loadout, onRetry: @escaping () -> Void) {
         self.onRetry = onRetry
-        let controller = GameController(simulation: Self.makeSimulation(for: mode))
+        let controller = GameController(simulation: Self.makeSimulation(for: mode, modifiers: loadout.modifiers))
         _controller = State(initialValue: controller)
-        _scene = State(initialValue: GameScene(controller: controller, theme: .foundry, haptics: HapticsService()))
+        _scene = State(initialValue: GameScene(controller: controller, theme: loadout.theme, droneID: loadout.droneID,
+                                               haptics: HapticsService()))
     }
 
-    private static func makeSimulation(for mode: RunMode) -> Simulation {
+    private static func makeSimulation(for mode: RunMode, modifiers: RunModifiers) -> Simulation {
         switch mode {
-        case .endless: .endless(seed: .random(in: .min ... .max))
+        case .endless: .endless(seed: .random(in: .min ... .max), modifiers: modifiers)
         case .daily: .daily(for: .now)
         case .challenge(let code): .challenge(code) ?? .endless(seed: code.simulationSeed)
         case .tutorial: .tutorial()
@@ -66,10 +92,10 @@ private struct GameRunView: View {
         }
         .onChange(of: controller.phase) { _, phase in
             guard case .ended(let summary) = phase else { return }
-            switch controller.mode {
-            case .endless: isNewBest = scores.record(endlessScore: summary.score)
-            case .tutorial: settings.tutorialCompleted = true
-            case .daily, .challenge: break
+            if controller.mode == .tutorial {
+                settings.tutorialCompleted = true
+            } else {
+                reward = profile.recordRun(id: runID, summary: summary, mode: controller.mode, at: .now)
             }
         }
     }
@@ -86,8 +112,7 @@ private struct GameRunView: View {
             TutorialCompleteView(onContinue: finishTutorial)
                 .transition(.opacity)
         case .ended(let summary):
-            ResultsView(summary: summary, mode: controller.mode, best: scores.bestEndless, isNewBest: isNewBest,
-                        onRetry: onRetry, onMenu: quit)
+            ResultsView(summary: summary, mode: controller.mode, reward: reward, onRetry: onRetry, onMenu: quit)
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
         }
     }

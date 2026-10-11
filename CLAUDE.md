@@ -25,7 +25,7 @@ Ship a polished, replayable 60–90 second single-player game loop with score ch
 - The Xcode project is generated (gitignored). After adding/removing files or editing `project.yml`: `xcodegen generate`
 - Core tests (fast, no simulator): `cd Packages/SalvageCore && swift test`
 - All tests: `xcodebuild test -project CyberSalvageRush.xcodeproj -scheme CyberSalvageRush -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath .build/xcode`
-- Debug launch args: `-startRun` (straight into Endless), `-startTutorial` (straight into training)
+- Debug launch args: `-startRun` (straight into Endless), `-startTutorial` (straight into training), `-freshProfile` (in-memory SwiftData store)
 
 ## Core Loop
 1. Salvage items enter the playfield on a conveyor.

@@ -3,9 +3,10 @@ import SwiftUI
 
 struct MainMenuView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(ScoreStore.self) private var scores
+    @Environment(ProfileRepository.self) private var profile
     @Environment(SettingsStore.self) private var settings
     @State private var showingSettings = false
+    @State private var showingShop = false
 
     var body: some View {
         VStack(spacing: 28) {
@@ -24,11 +25,14 @@ struct MainMenuView: View {
             .accessibilityLabel("Cyber Salvage Rush")
             .accessibilityAddTraits(.isHeader)
 
-            if scores.bestEndless > 0 {
-                Label("BEST \(scores.bestEndless.formatted())", systemImage: "trophy.fill")
-                    .font(.system(.subheadline, design: .monospaced).weight(.bold))
-                    .foregroundStyle(Palette.gold)
+            HStack(spacing: 20) {
+                if profile.bestEndless > 0 {
+                    Label("BEST \(profile.bestEndless.formatted())", systemImage: "trophy.fill")
+                }
+                CreditsLabel(credits: profile.credits)
             }
+            .font(.system(.subheadline, design: .monospaced).weight(.bold))
+            .foregroundStyle(Palette.gold)
 
             Spacer()
 
@@ -47,6 +51,20 @@ struct MainMenuView: View {
                     }
                 }
                 .buttonStyle(NeonButtonStyle(color: Palette.gold, prominent: false))
+
+                Button {
+                    showingShop = true
+                } label: {
+                    Label("WORKSHOP", systemImage: "wrench.and.screwdriver.fill")
+                        .overlay(alignment: .topTrailing) {
+                            // Nudge toward the first unlock.
+                            if profile.canAffordSomething {
+                                Circle().fill(Palette.magenta).frame(width: 10, height: 10).offset(x: 12, y: -4)
+                            }
+                        }
+                }
+                .buttonStyle(NeonButtonStyle(color: Palette.stroke, prominent: false))
+                .accessibilityHint(profile.canAffordSomething ? "New items affordable" : "")
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 40)
@@ -64,6 +82,9 @@ struct MainMenuView: View {
             .accessibilityLabel("Settings")
             .padding(.trailing, 12)
         }
+        .sheet(isPresented: $showingShop) {
+            ShopView()
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
                 .presentationDetents([.medium])
@@ -74,7 +95,7 @@ struct MainMenuView: View {
 #Preview {
     MainMenuView()
         .environment(AppRouter())
-        .environment(ScoreStore())
+        .environment(ProfileRepository(container: try! ProfileRepository.makeContainer(inMemory: true)))
         .environment(SettingsStore())
         .background(Palette.background)
 }

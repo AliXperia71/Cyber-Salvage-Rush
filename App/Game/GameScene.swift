@@ -24,6 +24,8 @@ final class GameScene: SKScene {
     private var itemNodes: [Int: ItemNode] = [:]
     private var lastUpdate: TimeInterval?
     private var tutorialGuide: TutorialGuide?
+    private let droneID: String?
+    private var drone: DroneNode?
 
     var hapticsEnabled: Bool {
         get { haptics.isEnabled }
@@ -34,9 +36,11 @@ final class GameScene: SKScene {
         didSet { if insets != oldValue { relayout() } }
     }
 
-    init(controller: GameController, theme: Theme, haptics: HapticsService) {
+    /// `droneID` nil means no companion (the tutorial keeps the board uncluttered).
+    init(controller: GameController, theme: Theme, droneID: String?, haptics: HapticsService) {
         self.controller = controller
         self.haptics = haptics
+        self.droneID = droneID
         textures = ProceduralTextureFactory(theme: theme)
         tray = BufferTrayNode(textures: textures)
         layout = BoardLayout(size: .zero, insets: .zero, laneCount: controller.config.laneCount,
@@ -103,6 +107,23 @@ final class GameScene: SKScene {
         })
 
         tray.layout(layout)
+        layoutDrone()
+    }
+
+    private func layoutDrone() {
+        guard let droneID else { return }
+        let size = layout.itemSize * 0.8
+        if drone?.size.width != size {
+            drone?.removeFromParent()
+            let node = DroneNode(texture: textures.drone(droneID, size: size), size: size)
+            boardLayer.addChild(node)
+            drone = node
+        }
+        guard let drone else { return }
+        drone.removeAction(forKey: "hover")
+        drone.position = CGPoint(x: self.size.width - BoardLayout.sideMargin - size * 0.6,
+                                 y: layout.trayRect.maxY + size * 0.75)
+        drone.startHovering()
     }
 
     // MARK: - Frame loop
@@ -191,6 +212,7 @@ final class GameScene: SKScene {
 
     private func handle(_ events: [GameEvent]) {
         for event in events {
+            drone?.react(to: event)
             switch event {
             case .spawned, .enteredBuffer, .runEnded:
                 break
@@ -209,6 +231,9 @@ final class GameScene: SKScene {
                 effects.popup("×\(multiplier) COMBO", at: CGPoint(x: size.width / 2, y: layout.trayRect.maxY + layout.itemSize * 1.2),
                               color: textures.theme.valuable, size: 30)
                 haptics.comboTierUp()
+                if let drone {
+                    effects.burst(at: drone.position, color: textures.theme.valuable, count: 16, speed: 120)
+                }
 
             case .missorted(let id, let bin):
                 guard let node = takeNode(id) else { break }

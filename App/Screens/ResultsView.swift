@@ -4,8 +4,8 @@ import SwiftUI
 struct ResultsView: View {
     let summary: RunSummary
     let mode: RunMode
-    let best: Int
-    let isNewBest: Bool
+    /// Nil only for a moment before the run is recorded.
+    let reward: RunReward?
     let onRetry: () -> Void
     let onMenu: () -> Void
 
@@ -23,20 +23,34 @@ struct ResultsView: View {
                         .font(.system(size: 56, weight: .black, design: .monospaced))
                         .foregroundStyle(Palette.text)
                         .minimumScaleFactor(0.5)
-                    if isNewBest {
+                    if reward?.isNewBest == true {
                         Text("NEW BEST")
                             .font(.system(.headline, design: .monospaced).weight(.black))
                             .foregroundStyle(Palette.background)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
                             .background(Palette.gold, in: .capsule)
-                    } else if mode == .endless, best > 0 {
+                    } else if mode == .endless, let best = reward?.best, best > 0 {
                         Text("BEST \(best.formatted())")
                             .font(.system(.subheadline, design: .monospaced).weight(.bold))
                             .foregroundStyle(Palette.gold)
                     }
                 }
                 .accessibilityElement(children: .combine)
+
+                if let reward, reward.credits > 0 {
+                    VStack(spacing: 2) {
+                        Label("+\(reward.credits.formatted()) CREDITS", systemImage: "circle.hexagongrid.fill")
+                            .font(.system(.headline, design: .monospaced).weight(.heavy))
+                            .foregroundStyle(Palette.gold)
+                        if reward.dailyBonus > 0 {
+                            Text("incl. +\(reward.dailyBonus) first run today")
+                                .font(.system(.caption, design: .monospaced).weight(.bold))
+                                .foregroundStyle(Palette.stroke)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
 
                 HStack(spacing: 0) {
                     Stat(title: "SORTED", value: "\(summary.totalSorted)")

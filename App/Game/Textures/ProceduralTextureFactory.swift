@@ -119,6 +119,69 @@ final class ProceduralTextureFactory {
         }
     }
 
+    /// Drone companion art. Also used by the shop, so the image is exposed separately.
+    func droneImage(_ id: String, size: CGFloat) -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { renderer in
+            drawDrone(id, size: size, ctx: renderer.cgContext)
+        }
+    }
+
+    func drone(_ id: String, size: CGFloat) -> SKTexture {
+        cached("drone.\(id).\(Int(size))") { SKTexture(image: droneImage(id, size: size)) }
+    }
+
+    private func drawDrone(_ id: String, size: CGFloat, ctx: CGContext) {
+        let rect = CGRect(x: 0, y: 0, width: size, height: size)
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let main = theme.standard
+        let accent = theme.valuable
+        ctx.setShadow(offset: .zero, blur: size * 0.12, color: main.cgColor)
+        main.setStroke()
+        accent.setFill()
+
+        func ring(radius: CGFloat, width: CGFloat) {
+            let path = UIBezierPath(arcCenter: center, radius: radius, startAngle: 0, endAngle: .pi * 2, clockwise: true)
+            path.lineWidth = width
+            path.stroke()
+        }
+        func disc(radius: CGFloat) {
+            UIBezierPath(arcCenter: center, radius: radius, startAngle: 0, endAngle: .pi * 2, clockwise: true).fill()
+        }
+
+        switch id {
+        case "drone.magpie":
+            for side: CGFloat in [-1, 1] {
+                let wing = UIBezierPath()
+                wing.move(to: CGPoint(x: center.x + side * size * 0.12, y: center.y))
+                wing.addLine(to: CGPoint(x: center.x + side * size * 0.46, y: center.y + size * 0.22))
+                wing.addLine(to: CGPoint(x: center.x + side * size * 0.40, y: center.y - size * 0.12))
+                wing.close()
+                main.withAlphaComponent(0.3).setFill()
+                wing.fill()
+                wing.lineWidth = 2
+                wing.stroke()
+            }
+            accent.setFill()
+            let body = Self.polygon(sides: 4, in: rect.insetBy(dx: size * 0.3, dy: size * 0.3), rotation: -.pi / 2)
+            body.fill()
+        case "drone.warden":
+            let hex = Self.polygon(sides: 6, in: rect.insetBy(dx: size * 0.12, dy: size * 0.12), rotation: .pi / 2)
+            main.withAlphaComponent(0.25).setFill()
+            hex.fill()
+            hex.lineWidth = 3
+            hex.stroke()
+            accent.setFill()
+            disc(radius: size * 0.1)
+        case "drone.halo":
+            ring(radius: size * 0.42, width: 2.5)
+            ring(radius: size * 0.30, width: 2.5)
+            disc(radius: size * 0.12)
+        default: // drone.spark
+            ring(radius: size * 0.34, width: 3)
+            disc(radius: size * 0.14)
+        }
+    }
+
     /// Soft white dot; tinted per particle.
     func spark() -> SKTexture {
         cached("spark") {
@@ -142,7 +205,7 @@ final class ProceduralTextureFactory {
         }
     }
 
-    private static func polygon(sides: Int, in rect: CGRect, rotation: CGFloat, verticalBias: CGFloat = 0) -> UIBezierPath {
+    static func polygon(sides: Int, in rect: CGRect, rotation: CGFloat, verticalBias: CGFloat = 0) -> UIBezierPath {
         let center = CGPoint(x: rect.midX, y: rect.midY + rect.height * verticalBias)
         let radius = min(rect.width, rect.height) / 2
         let path = UIBezierPath()
