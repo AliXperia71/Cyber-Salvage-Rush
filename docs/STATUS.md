@@ -1,6 +1,19 @@
 # Status & Next Steps
 
-Last updated: 2026-10-11. Full plan: `docs/PLAN.md`.
+Last updated: 2026-10-14. Full plan: `docs/PLAN.md`.
+
+## ▶ Resume here (paused after M5, planned restart: weekend of 2026-10-17)
+State: M0–M5 done and pushed (`d75f8ec`); the only later commit should be this STATUS note. 73 tests green (45 core + 28 app).
+Remaining: **M6 Game Center → M7 StoreKit + AdMob → M8 polish → M9 release** (M9 is the App Store submission).
+
+**Ali to do before the session (Apple/Google accounts, not code):**
+1. Find your Team ID (developer.apple.com → Membership) and put it in `project.yml` → `DEVELOPMENT_TEAM`. This blocks M6.
+2. App Store Connect: create the app record for `com.aliaamir.CyberSalvageRush`.
+3. Start the **Paid Apps Agreement** plus banking and tax now. Approval can take days and blocks IAP testing in M7.
+4. Optional for M7: create an AdMob account and app. Debug builds use Google's test IDs, so this isn't blocking yet.
+
+**Working conventions:** Claude writes code and runs tests. Ali runs every git command (Claude hands over the commands and a suggested commit message). Start the session by reading this file.
+
 
 ## Done
 | Milestone | Commit | Notes |
@@ -10,7 +23,7 @@ Last updated: 2026-10-11. Full plan: `docs/PLAN.md`.
 | M2 Presentation | `5716b59` | SpriteKit scene, baked neon textures, multi-touch drag, FX, haptics |
 | M3 Shell + tutorial | `4be669a` | Menu, HUD, pause, results/retry, ghost-hand tutorial, Settings sheet |
 | M4 Progression | `3523982` | SwiftData profile, credits, Workshop shop, 4 themes, 4 drones, Endless upgrades |
-| M5 Daily + challenges | (pending commit) | Daily best on menu/results, Friends challenges, result codes, `cybersalvage://` links, SchemaV2 |
+| M5 Daily + challenges | `d75f8ec` | Daily best on menu/results, Friends challenges, result codes, `cybersalvage://` links, SchemaV2 |
 
 Playtested by the user with trackpad drag in the simulator. **Not yet tested on a physical iPhone.** M4 shop/purchase flow verified by tests and screenshots only, not hand-played yet.
 
